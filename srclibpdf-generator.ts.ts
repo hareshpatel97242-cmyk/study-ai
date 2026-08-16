@@ -1,0 +1,273 @@
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import { AcademicTopic } from "../data/academicTopics";
+
+export type PdfLanguage = 'gujarati' | 'english' | 'bilingual' | 'hindi';
+
+export interface ShortNotesData {
+  topic: AcademicTopic;
+  customNotes?: string;
+  studentName?: string;
+  language?: PdfLanguage;
+}
+
+export async function generateShortNotesPDF(data: ShortNotesData): Promise<void> {
+  const { 
+    topic, 
+    customNotes, 
+    studentName = "Student (વિદ્યાર્થી)",
+    language = "gujarati" 
+  } = data;
+
+  // Ensure fonts are loaded before generating PDF
+  if (document.fonts) {
+    await document.fonts.ready;
+  }
+
+  // Language specific text dictionary
+  const langConfig = {
+    gujarati: {
+      title: "સ્ટડી AI - શોર્ટ નોટ્સ રિવિઝન",
+      subtitle: `વિદ્યાર્થી: ${studentName} | સ્માર્ટ લર્નિંગ એન્ડ રિવિઝન`,
+      tag: "ટોપર રિવિઝન",
+      overviewTitle: "પ્રકરણ સારાંશ (OVERVIEW):",
+      sec1Title: "૧. મુખ્ય મહત્વના મુદ્દાઓ (KEY CONCEPTS)",
+      sec2Title: "૨. સૂત્રો અને પરીક્ષાલક્ષી નિયમો (FORMULAS & RULES)",
+      sec3Title: "૩. શિક્ષકની માસ્ટર ટ્રિક્સ અને પરીક્ષા ટિપ્સ (EXAM TIPS)",
+      footerLeft: `સ્ટડી AI શોર્ટ નોટ્સ — વિદ્યાર્થી: ${studentName}`,
+      footerRight: "ડેવલપર: જીગર (Jigar) | અમલીવાસ, દિયોદર",
+    },
+    english: {
+      title: "STUDY AI - TOPPER SHORT NOTES",
+      subtitle: `Student: ${studentName} | Smart Learning & Revision`,
+      tag: "TOPPER REVISION",
+      overviewTitle: "CHAPTER OVERVIEW:",
+      sec1Title: "1. IMPORTANT KEY CONCEPTS",
+      sec2Title: "2. FORMULAS & ESSENTIAL RULES",
+      sec3Title: "3. MASTER TEACHER REVISION & EXAM TIPS",
+      footerLeft: `Study AI Short Notes — Student: ${studentName}`,
+      footerRight: "Developer: Jigar | Amllivas, Deodar",
+    },
+    bilingual: {
+      title: "STUDY AI - SHORT NOTES (શોર્ટ નોટ્સ)",
+      subtitle: `Student/વિદ્યાર્થી: ${studentName} | Dual Language Notes`,
+      tag: "TOPPER REVISION",
+      overviewTitle: "CHAPTER OVERVIEW / પ્રકરણ પરિચય:",
+      sec1Title: "1. KEY CONCEPTS / મુખ્ય મુદ્દાઓ",
+      sec2Title: "2. FORMULAS & RULES / સૂત્રો અને નિયમો",
+      sec3Title: "3. MASTER TEACHER TIPS / શિક્ષકની સ્માર્ટ ટિપ્સ",
+      footerLeft: `Study AI Short Notes — ${studentName}`,
+      footerRight: "Developer: Jigar | Amllivas, Deodar",
+    },
+    hindi: {
+      title: "स्टडी AI - शॉर्ट नोट्स रिवीजन",
+      subtitle: `विद्यार्थी: ${studentName} | स्मार्ट लर्निंग एवं रिवीजन`,
+      tag: "टॉपर्स रिवीजन",
+      overviewTitle: "अध्याय सारांश (OVERVIEW):",
+      sec1Title: "1. मुख्य महत्वपूर्ण बिंदु (KEY CONCEPTS)",
+      sec2Title: "2. सूत्र एवं परीक्षा नियम (FORMULAS & RULES)",
+      sec3Title: "3. शिक्षक की मास्टर ट्रिक्स और टिप्स (EXAM TIPS)",
+      footerLeft: `स्टडी AI शॉर्ट नोट्स — विद्यार्थी: ${studentName}`,
+      footerRight: "डेवलपर: जिगर (Jigar) | अमलीवास, दियोदर",
+    }
+  }[language] || {
+    title: "સ્ટડી AI - શોર્ટ નોટ્સ રિવિઝન",
+    subtitle: `વિદ્યાર્થી: ${studentName} | સ્માર્ટ લર્નિંગ એન્ડ રિવિઝન`,
+    tag: "ટોપર રિવિઝન",
+    overviewTitle: "પ્રકરણ સારાંશ (OVERVIEW):",
+    sec1Title: "૧. મુખ્ય મહત્વના મુદ્દાઓ (KEY CONCEPTS)",
+    sec2Title: "૨. સૂત્રો અને પરીક્ષાલક્ષી નિયમો (FORMULAS & RULES)",
+    sec3Title: "૩. શિક્ષકની માસ્ટર ટ્રિક્સ અને પરીક્ષા ટિપ્સ (EXAM TIPS)",
+    footerLeft: `સ્ટડી AI શોર્ટ નોટ્સ — વિદ્યાર્થી: ${studentName}`,
+    footerRight: "ડેવલપર: જીગર (Jigar) | અમલીવાસ, દિયોદર",
+  };
+
+  // Create temporary container element positioned inside viewport coordinates so browser font engine computes Indic script conjuncts & matras
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.top = "0";
+  container.style.left = "0";
+  container.style.width = "794px"; // A4 Width in pixels at 96 DPI
+  container.style.zIndex = "-99999";
+  container.style.opacity = "0.01";
+  container.style.pointerEvents = "none";
+  container.style.backgroundColor = "#ffffff";
+  container.style.color = "#0f172a";
+  container.style.boxSizing = "border-box";
+  container.style.padding = "0px";
+
+  // Embedded Google Fonts & Styles to prevent glyph substitution or garbled text
+  container.innerHTML = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Hind+Vadodara:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap');
+      
+      .pdf-root * {
+        font-family: 'Noto Sans Gujarati', 'Hind Vadodara', 'Noto Sans Devanagari', 'Shruti', 'Gujarati MT', sans-serif !important;
+        box-sizing: border-box !important;
+        -webkit-font-smoothing: antialiased !important;
+        text-rendering: optimizeLegibility !important;
+      }
+    </style>
+
+    <div class="pdf-root" style="padding: 28px; background-color: #ffffff; color: #0f172a; width: 794px; line-height: 1.6;">
+      <!-- Top Header Banner -->
+      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 22px 26px; border-radius: 14px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; border: 2px solid #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <div>
+          <div style="font-size: 24px; font-weight: 800; color: #38bdf8; margin-bottom: 4px; letter-spacing: 0.2px;">
+            ${langConfig.title}
+          </div>
+          <div style="font-size: 13px; color: #f1f5f9; font-weight: 600;">
+            ${langConfig.subtitle}
+          </div>
+          <div style="font-size: 11px; color: #94a3b8; margin-top: 4px; font-weight: 500;">
+            ૧૦૦% સ્પષ્ટ અને વાંચી શકાય તેવા અક્ષરોમાં સ્માર્ટ શોર્ટ નોટ્સ PDF
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <span style="background-color: #f59e0b; color: #000000; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.8px; display: inline-block;">
+            ${langConfig.tag}
+          </span>
+          <div style="font-size: 11px; color: #cbd5e1; margin-top: 8px; font-weight: 600;">
+            ભાષા: <span style="color: #38bdf8; font-weight: 800;">${language.toUpperCase()}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter Header Card -->
+      <div style="background-color: #f8fafc; border: 2px solid #cbd5e1; border-left: 8px solid #2563eb; padding: 18px 22px; border-radius: 12px; margin-bottom: 22px;">
+        <div style="font-size: 20px; font-weight: 800; color: #1e3a8a; margin-bottom: 6px; line-height: 1.4;">
+          ${topic.name} <span style="font-size: 16px; font-weight: 600; color: #475569;">(${topic.englishName})</span>
+        </div>
+        <div style="font-size: 13px; font-weight: 700; color: #334155; display: flex; gap: 14px; margin-top: 4px;">
+          <span>ધોરણ: <strong style="color: #2563eb;">Class ${topic.classNum}</strong></span> |
+          <span>સ્ટ્રીમ: <strong style="color: #2563eb;">${topic.stream.toUpperCase()}</strong></span> |
+          <span>વિષય: <strong style="color: #2563eb;">${topic.subject.toUpperCase()}</strong></span>
+        </div>
+      </div>
+
+      <!-- Chapter Overview Box -->
+      ${topic.description ? `
+        <div style="background-color: #fffbe2; border: 1.5px solid #fde047; border-radius: 10px; padding: 16px 20px; margin-bottom: 22px;">
+          <div style="font-size: 14px; font-weight: 800; color: #b45309; margin-bottom: 6px;">
+            📌 ${langConfig.overviewTitle}
+          </div>
+          <div style="font-size: 13.5px; color: #1e293b; line-height: 1.7; font-weight: 500;">
+            ${topic.description}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Section 1: Key Points -->
+      ${topic.keyPoints && topic.keyPoints.length > 0 ? `
+        <div style="margin-bottom: 24px;">
+          <div style="background-color: #e0e7ff; border-radius: 10px; padding: 10px 16px; font-size: 15px; font-weight: 800; color: #1e1b4b; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+            <span style="color: #4338ca;">✔</span> <span>${langConfig.sec1Title}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${topic.keyPoints.map((pt, i) => `
+              <div style="font-size: 14px; color: #0f172a; line-height: 1.7; font-weight: 500; display: flex; gap: 10px; background-color: #f1f5f9; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #6366f1;">
+                <span style="font-weight: 800; color: #4f46e5; flex-shrink: 0;">•</span>
+                <span>${pt}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Section 2: Formulas / Rules -->
+      ${topic.formulasOrConcepts && topic.formulasOrConcepts.length > 0 ? `
+        <div style="margin-bottom: 24px;">
+          <div style="background-color: #dcfce7; border-radius: 10px; padding: 10px 16px; font-size: 15px; font-weight: 800; color: #14532d; margin-bottom: 14px;">
+            ⚡ ${langConfig.sec2Title}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${topic.formulasOrConcepts.map((f, i) => `
+              <div style="background-color: #ffffff; border: 1.5px solid #bbf7d0; border-left: 5px solid #16a34a; padding: 12px 16px; border-radius: 8px; font-size: 14px; color: #064e3b; font-weight: 600; line-height: 1.6;">
+                <span style="background-color: #16a34a; color: #ffffff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; margin-right: 10px; font-family: monospace;">
+                  [${i + 1}]
+                </span>
+                <span>${f}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Section 3: Master Teacher Notes / Custom Notes -->
+      ${customNotes ? `
+        <div style="margin-bottom: 24px;">
+          <div style="background-color: #ffe4e6; border-radius: 10px; padding: 10px 16px; font-size: 15px; font-weight: 800; color: #881337; margin-bottom: 14px;">
+            🎓 ${langConfig.sec3Title}
+          </div>
+          <div style="background-color: #fff1f2; border: 2px dashed #f43f5e; padding: 16px 20px; border-radius: 10px; font-size: 14px; color: #881337; line-height: 1.8; font-weight: 500;">
+            ${customNotes.replace(/\n/g, '<br/>')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Footer Stamp -->
+      <div style="margin-top: 36px; padding-top: 18px; border-top: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #475569; font-weight: 700;">
+        <div>${langConfig.footerLeft}</div>
+        <div>${langConfig.footerRight}</div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  try {
+    // Small delay to allow Google Fonts & Indic text shaper to fully render Gujarati characters
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Render container to canvas at scale = 2 for ultra crisp text
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+
+    const cleanFileName = `StudyAI_${topic.id}_${language}_ShortNotes.pdf`;
+    pdf.save(cleanFileName);
+  } catch (error) {
+    console.error("HTML2Canvas PDF generation error:", error);
+    // Fallback simple download
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`STUDY AI - SHORT NOTES: ${topic.name}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Subject: ${topic.subject} | Class: ${topic.classNum}`, 14, 30);
+    doc.text(`Key Concepts:`, 14, 42);
+    topic.keyPoints.forEach((pt, i) => {
+      doc.text(`- ${pt}`, 14, 50 + (i * 8));
+    });
+    doc.save(`${topic.id}_Notes.pdf`);
+  } finally {
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  }
+}
