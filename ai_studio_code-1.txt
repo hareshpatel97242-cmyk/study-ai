@@ -1,0 +1,6 @@
+{
+  "name": "Study AI",
+  "description": "Study AI - Smart Male AI Teacher & PDF Short Notes Generator created by Jigar for student learning and revision.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
