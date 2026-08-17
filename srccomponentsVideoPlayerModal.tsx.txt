@@ -1,0 +1,56 @@
+import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X } from 'lucide-react';
+import YouTube, { YouTubeProps } from 'react-youtube';
+
+interface VideoPlayerModalProps {
+  activeVideoId: string | null;
+  onClose: () => void;
+  onPlayerReady: YouTubeProps['onReady'];
+  isPlaying: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+}
+
+export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({
+  activeVideoId,
+  onClose,
+  onPlayerReady,
+  onPlay,
+  onPause,
+}) => {
+  return (
+    <AnimatePresence>
+      {activeVideoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="relative w-full max-w-2xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/20 shadow-2xl"
+          >
+            <YouTube
+              videoId={activeVideoId}
+              onReady={onPlayerReady}
+              onPlay={onPlay}
+              onPause={onPause}
+              opts={{ 
+                height: '100%', 
+                width: '100%', 
+                playerVars: { autoplay: 1, controls: 1 } 
+              }}
+              className="absolute inset-0"
+            />
+            <button 
+              onClick={onClose} 
+              className="absolute top-3 right-3 p-2 bg-black/70 hover:bg-black/90 text-white rounded-full z-20 transition-colors border border-white/10"
+              title="વીડિયો બંધ કરો"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+};
